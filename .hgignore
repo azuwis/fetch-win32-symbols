@@ -4,3 +4,5 @@
 ^skiplist.txt$
 ^symsrv.dll$
 ^symsrv.yes$
+^config.py$
+\.pyc$

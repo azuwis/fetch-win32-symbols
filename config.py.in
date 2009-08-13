@@ -1,6 +1,12 @@
-# Full path to store downloaded symbols in
-symbol_path=''
-# Read-only path to also examine for symbols (optional)
+# Read-only path to examine for existing symbols
 read_only_symbol_path=''
-# URL pointing to the query data to download
-query_data_url=''
+# URL pointing to the ATOM feed of crash reports
+feed_url=''
+# Host to upload symbols to via scp
+symbol_host=''
+# Username to upload as on symbol_host
+symbol_user=''
+# Full path to a private key to use to login to symbol_host
+symbol_privkey=''
+# Path to unpack symbols at on symbol_host
+symbol_path=''
