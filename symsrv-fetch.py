@@ -15,15 +15,18 @@
 #
 # The script also depends on having write access to the directory it is
 # installed in, to write the skiplist text file.
+#
+# Finally, you must have 'zip' (Info-Zip), 'scp', and 'ssh' available in %PATH%.
 
 import config
 import sys
-import os.path
+import os
 import time, datetime
 import subprocess
 import feedparser
 import StringIO
 import gzip
+import shutil
 from collections import defaultdict
 from tempfile import mkdtemp
 from urllib import urlopen
@@ -65,6 +68,9 @@ try:
 except IOError:
   pass
 
+if verbose:
+  print "Loading feed URL..."
+
 try:
   f = feedparser.parse(config.feed_url)
 except IOError:
@@ -73,6 +79,8 @@ except IOError:
 
 modules = defaultdict(set)
 symbol_path = mkdtemp()
+if verbose:
+  print "Parsing reports JSON... (x%d)" % len(f.entries)
 # For each crash report in the feed, find the JSON file and parse it,
 # then parse the module list from that data.
 for e in f.entries:
@@ -94,6 +102,8 @@ for e in f.entries:
       except IOError:
         pass
 
+if verbose:
+  print "Fetching symbols..."
 # Now try to fetch all the unknown modules from the symbol server
 for filename, ids in modules.iteritems():
   if filename in blacklist:
@@ -117,12 +127,14 @@ for filename, ids in modules.iteritems():
     # ask the symbol server for it.
     # This expects that symsrv_convert.exe and all its dependencies
     # are in the current directory.
+
+    # Sometimes we get non-ascii in here. This is definitely not
+    # correct, but it should at least stop us from throwing.
+    filename = filename.encode('ascii', 'replace')
     if not verbose:
       stdout = open("NUL","w")
-      stderr = open("NUL","w")
     else:
       stdout = None
-      stderr = None
       print "fetching %s %s" % (filename, id)
     rv = subprocess.call(["symsrv_convert.exe",
                           MICROSOFT_SYMBOL_SERVER,
@@ -130,15 +142,55 @@ for filename, ids in modules.iteritems():
                           filename,
                           id],
                          stdout = stdout,
-                         stderr = stderr)
+                         stderr = subprocess.STDOUT)
     # Return code of 2 or higher is an error
     if rv >= 2:
       skiplist[id] = filename
     # Otherwise we just assume it was written out, not much we can do
     # if it wasn't. We'll try again next time we see it anyway.
 
-#XXX: upload everything from symbol_path, and then delete the directory
-#shutil.rmtree(symbol_path)
+if len(os.listdir(symbol_path)) == 0:
+  if verbose:
+    print "No symbols downloaded!"
+  sys.exit(0)
+
+try:
+  zipfile = os.path.join(os.path.dirname(symbol_path), "symbols.zip")
+  if verbose:
+    print "Zipping symbols..."
+  subprocess.check_call(["zip", "-r9", zipfile, "*"],
+                        cwd = symbol_path,
+                        stdout = open("NUL","w"),
+                        stderr = subprocess.STDOUT)
+  if verbose:
+    print "Uploading symbols..."
+
+  def msyspath(path):
+    "Translate Windows path |path| into an MSYS path"
+    path = os.path.abspath(path)
+    return "/" + path[0] + path[2:].replace("\\", "/")
+
+  subprocess.check_call(["scp", "-i", msyspath(config.symbol_privkey),
+                         msyspath(zipfile),
+                         "%s@%s:%s" % (config.symbol_user,
+                                       config.symbol_host,
+                                       config.symbol_path)],
+                        stdout = open("NUL","w"),
+                        stderr = subprocess.STDOUT)
+  if verbose:
+    print "Unpacking symbols on remote host..."
+  subprocess.check_call(["ssh", "-i", msyspath(config.symbol_privkey),
+                         "-l", config.symbol_user, config.symbol_host,
+                         "cd %s && unzip -o symbols.zip && rm -v symbols.zip" % config.symbol_path],
+                        stdout = open("NUL","w"),
+                        stderr = subprocess.STDOUT)
+except Exception, ex:
+  print "Error zipping or uploading symbols: ", ex
+finally:
+  if os.path.exists(zipfile):
+    os.remove(zipfile)
+  shutil.rmtree(symbol_path, True)
+  pass
 
 # Write out our new skip list
 try:
@@ -148,3 +200,6 @@ try:
   sf.close()
 except IOError:
   print >>sys.stderr, "Error writing skiplist.txt"
+
+if verbose:
+  print "Done!"
