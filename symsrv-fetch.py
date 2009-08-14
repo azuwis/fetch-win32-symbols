@@ -27,6 +27,7 @@ import feedparser
 import StringIO
 import gzip
 import shutil
+import ctypes
 from collections import defaultdict
 from tempfile import mkdtemp
 from urllib import urlopen
@@ -43,6 +44,13 @@ verbose = False
 
 if len(sys.argv) > 1 and sys.argv[1] == "-v":
   verbose = True
+
+logfile = open(os.path.join(os.path.dirname(__file__), "symsrv-fetch.log"),
+               "w+")
+def log(msg):
+  logfile.write(time.strftime("%Y-%m-%d %H:%M:%S") + " " + msg + "\n")
+
+log("Started")
 
 # Symbols that we know belong to us, so don't ask Microsoft for them.
 blacklist=set()
@@ -136,15 +144,23 @@ for filename, ids in modules.iteritems():
     else:
       stdout = None
       print "fetching %s %s" % (filename, id)
-    rv = subprocess.call(["symsrv_convert.exe",
-                          MICROSOFT_SYMBOL_SERVER,
-                          symbol_path,
-                          filename,
-                          id],
-                         stdout = stdout,
-                         stderr = subprocess.STDOUT)
+    proc = subprocess.Popen(["symsrv_convert.exe",
+                             MICROSOFT_SYMBOL_SERVER,
+                             symbol_path,
+                             filename,
+                             id],
+                            stdout = stdout,
+                            stderr = subprocess.STDOUT)
+    # kind of lame, want to prevent it from running too long
+    start = time.time()
+    # 30 seconds should be more than enough time
+    while proc.poll() is None and (time.time() - start) < 30:
+      time.sleep(1)
+    if proc.poll() is None:
+      # kill it, it's been too long
+      ctypes.windll.kernel32.TerminateProcess(int(proc._handle), -1)
     # Return code of 2 or higher is an error
-    if rv >= 2:
+    elif proc.returncode >= 2:
       skiplist[id] = filename
     # Otherwise we just assume it was written out, not much we can do
     # if it wasn't. We'll try again next time we see it anyway.
@@ -152,6 +168,7 @@ for filename, ids in modules.iteritems():
 if len(os.listdir(symbol_path)) == 0:
   if verbose:
     print "No symbols downloaded!"
+  log("No symbols downloaded")
   sys.exit(0)
 
 try:
@@ -181,7 +198,7 @@ try:
     print "Unpacking symbols on remote host..."
   subprocess.check_call(["ssh", "-i", msyspath(config.symbol_privkey),
                          "-l", config.symbol_user, config.symbol_host,
-                         "cd %s && unzip -o symbols.zip && rm -v symbols.zip" % config.symbol_path],
+                         "cd %s && unzip -n symbols.zip; rm -v symbols.zip" % config.symbol_path],
                         stdout = open("NUL","w"),
                         stderr = subprocess.STDOUT)
 except Exception, ex:
@@ -203,3 +220,4 @@ except IOError:
 
 if verbose:
   print "Done!"
+log("Finished, exiting")
