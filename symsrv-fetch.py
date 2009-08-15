@@ -46,7 +46,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "-v":
   verbose = True
 
 logfile = open(os.path.join(os.path.dirname(__file__), "symsrv-fetch.log"),
-               "w+")
+               "a")
 def log(msg):
   logfile.write(time.strftime("%Y-%m-%d %H:%M:%S") + " " + msg + "\n")
 
