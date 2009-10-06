@@ -70,7 +70,10 @@ try:
       line = line.strip()
       if line == '':
           continue
-      (debug_id, debug_file) = line.split(None, 1)
+      s = line.split(None, 1)
+      if len(s) != 2:
+        continue
+      (debug_id, debug_file) = s
       skiplist[debug_id] = debug_file
   sf.close()
 except IOError:
