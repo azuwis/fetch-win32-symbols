@@ -57,7 +57,7 @@ blacklist=set()
 try:
   bf = file('blacklist.txt', 'r')
   for line in bf:
-      blacklist.add(line.strip())
+      blacklist.add(line.strip().lower())
   bf.close()
 except IOError:
   pass
@@ -74,7 +74,7 @@ try:
       if len(s) != 2:
         continue
       (debug_id, debug_file) = s
-      skiplist[debug_id] = debug_file
+      skiplist[debug_id] = debug_file.lower()
   sf.close()
 except IOError:
   pass
@@ -117,11 +117,11 @@ if verbose:
   print "Fetching symbols..."
 # Now try to fetch all the unknown modules from the symbol server
 for filename, ids in modules.iteritems():
-  if filename in blacklist:
+  if filename.lower() in blacklist:
     # This is one of our our debug files from Firefox/Thunderbird/etc
     continue
   for id in ids:
-    if id in skiplist and skiplist[id] == filename:
+    if id in skiplist and skiplist[id] == filename.lower():
       # We've asked the symbol server previously about this, so skip it.
       continue
     sym_file = os.path.join(symbol_path, filename, id,

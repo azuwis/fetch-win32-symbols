@@ -1,12 +1,12 @@
 accessibility.pdb
 AccessibleMarshal.pdb
-accessiblemarshal.pdb
 appcomps.pdb
 appshell.pdb
 auth.pdb
 autoconfig.pdb
 bookmark.pdb
 browserdirprovider.pdb
+browsercomps.pdb
 brwsrcmp.pdb
 calbscmp.pdb
 caps.pdb
@@ -23,7 +23,6 @@ ds32.pdb
 embedcomponents.pdb
 firefox.pdb
 freebl3.pdb
-getshortpathname.pdb
 GetShortPathName.pdb
 gkgfx.pdb
 gkgfxthebes.pdb
@@ -47,17 +46,17 @@ mapiproxy.pdb
 MapiProxy.pdb
 mork.pdb
 mozabconduit.pdb
+mozcpp19.pdb
 mozcrt19.pdb
 mozfind.pdb
+mozjs.pdb
 mozlcms.pdb
 mozldap.pdb
-mozmapi32.pdb
 mozMapi32.pdb
 mozz.pdb
 msgmapi.pdb
 msgMapi.pdb
 msgsmime.pdb
-myservce.pdb
 MyServce.pdb
 myspell.pdb
 necko.pdb
@@ -79,7 +78,6 @@ nssutil3.pdb
 oji.pdb
 palmsyncinstall.pdb
 palmsync.pdb
-palmsyncproxy.pdb
 PalmSyncProxy.pdb
 perms.pdb
 pipboot.pdb
@@ -92,7 +90,6 @@ rdf.pdb
 readntlm.pdb
 satchel.pdb
 seamonkey.pdb
-simpletypelib.pdb
 SimpleTypeLib.pdb
 smime3.pdb
 softokn3.pdb
