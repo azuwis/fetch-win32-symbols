@@ -23,7 +23,6 @@ import sys
 import os
 import time, datetime
 import subprocess
-import feedparser
 import StringIO
 import gzip
 import shutil
@@ -31,11 +30,6 @@ import ctypes
 from collections import defaultdict
 from tempfile import mkdtemp
 from urllib import urlopen
-
-try:
-  import simplejson as json
-except ImportError:
-  import json
 
 # Just hardcoded here
 MICROSOFT_SYMBOL_SERVER = "http://msdl.microsoft.com/download/symbols"
@@ -79,48 +73,45 @@ try:
 except IOError:
   pass
 
+modules = defaultdict(set)
 if verbose:
-  print "Loading feed URL..."
-
+  print "Loading module list URL..."
 try:
-  f = feedparser.parse(config.feed_url)
-except IOError:
-  print >>sys.stderr, "Failed to parse feed from %s" % config.feed_url
+  date = (datetime.date.today() - datetime.timedelta(1)).strftime("%Y%m%d")
+  url = config.csv_url % {'date': date}
+  for line in urlopen(url).readlines():
+    line = line.rstrip()
+    bits = line.split(',')
+    if len(bits) != 3:
+      continue
+    dll, pdb, uuid = bits
+    modules[pdb].add(uuid)
+except IOError, e:
+  log("Error fetching: %s" % e)
   sys.exit(1)
 
-modules = defaultdict(set)
 symbol_path = mkdtemp()
-if verbose:
-  print "Parsing reports JSON... (x%d)" % len(f.entries)
-# For each crash report in the feed, find the JSON file and parse it,
-# then parse the module list from that data.
-for e in f.entries:
-  for l in e.links:
-    if l.type == 'application/x-gzip':
-      # parse l.href, read modules into modules
-      try:
-        u = urlopen(l.href)
-        data = u.read()
-        u.close()
-        data = gzip.GzipFile(fileobj=StringIO.StringIO(data)).read()
-        j = json.loads(data)
-        u.close()
-        for l in j['dump'].split('\n'):
-          if l.startswith("Module|"):
-            (debugfile, debugid) = l.split('|')[3:5]
-            if debugfile and debugid:
-              modules[debugfile].add(debugid)
-      except IOError:
-        pass
 
 if verbose:
   print "Fetching symbols..."
+total = sum(len(ids) for ids in modules.values())
+current = 0
 # Now try to fetch all the unknown modules from the symbol server
 for filename, ids in modules.iteritems():
+  # Sometimes we get non-ascii in here. This is definitely not
+  # correct, but it should at least stop us from throwing.
+  filename = filename.encode('ascii', 'replace')
+
   if filename.lower() in blacklist:
     # This is one of our our debug files from Firefox/Thunderbird/etc
+    current += len(ids)
     continue
   for id in ids:
+    current += 1
+    if verbose:
+      sys.stdout.write("[%6d/%6d] %3d%% %-20s\r" % (current, total,
+                                                    int(current / total),
+                                                    filename[:20]))
     if id in skiplist and skiplist[id] == filename.lower():
       # We've asked the symbol server previously about this, so skip it.
       continue
@@ -138,15 +129,7 @@ for filename, ids in modules.iteritems():
     # ask the symbol server for it.
     # This expects that symsrv_convert.exe and all its dependencies
     # are in the current directory.
-
-    # Sometimes we get non-ascii in here. This is definitely not
-    # correct, but it should at least stop us from throwing.
-    filename = filename.encode('ascii', 'replace')
-    if not verbose:
-      stdout = open("NUL","w")
-    else:
-      stdout = None
-      print "fetching %s %s" % (filename, id)
+    stdout = open("NUL","w")
     proc = subprocess.Popen(["symsrv_convert.exe",
                              MICROSOFT_SYMBOL_SERVER,
                              symbol_path,
@@ -167,6 +150,9 @@ for filename, ids in modules.iteritems():
       skiplist[id] = filename
     # Otherwise we just assume it was written out, not much we can do
     # if it wasn't. We'll try again next time we see it anyway.
+
+if verbose:
+  sys.stdout.write("\n")
 
 if len(os.listdir(symbol_path)) == 0:
   if verbose:
@@ -210,7 +196,6 @@ finally:
   if os.path.exists(zipfile):
     os.remove(zipfile)
   shutil.rmtree(symbol_path, True)
-  pass
 
 # Write out our new skip list
 try:

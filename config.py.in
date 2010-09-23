@@ -1,7 +1,8 @@
 # Read-only path to examine for existing symbols
 read_only_symbol_path=''
-# URL pointing to the ATOM feed of crash reports
-feed_url=''
+# URL pointing to the daily module report file in CSV format
+# %(date)s will be substituted with the date as YYYYMMDD
+csv_url=''
 # Host to upload symbols to via scp
 symbol_host=''
 # Username to upload as on symbol_host
