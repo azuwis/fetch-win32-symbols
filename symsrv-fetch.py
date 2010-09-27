@@ -110,7 +110,7 @@ for filename, ids in modules.iteritems():
     current += 1
     if verbose:
       sys.stdout.write("[%6d/%6d] %3d%% %-20s\r" % (current, total,
-                                                    int(current / total),
+                                                    int(100 * current / total),
                                                     filename[:20]))
     if id in skiplist and skiplist[id] == filename.lower():
       # We've asked the symbol server previously about this, so skip it.
