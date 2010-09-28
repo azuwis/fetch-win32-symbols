@@ -11,3 +11,5 @@ symbol_user=''
 symbol_privkey=''
 # Path to unpack symbols at on symbol_host
 symbol_path=''
+# Temporary directory to store symbols in locally
+temp_dir=''

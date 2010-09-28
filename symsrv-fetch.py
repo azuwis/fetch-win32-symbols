@@ -90,7 +90,7 @@ except IOError, e:
   log("Error fetching: %s" % e)
   sys.exit(1)
 
-symbol_path = mkdtemp()
+symbol_path = mkdtemp(dir=config.temp_dir)
 
 if verbose:
   print "Fetching symbols..."
