@@ -18,6 +18,7 @@
 #
 # Finally, you must have 'zip' (Info-Zip), 'scp', and 'ssh' available in %PATH%.
 
+from __future__ import with_statement
 import config
 import sys
 import os
@@ -96,6 +97,7 @@ if verbose:
   print "Fetching symbols..."
 total = sum(len(ids) for ids in modules.values())
 current = 0
+file_index = []
 # Now try to fetch all the unknown modules from the symbol server
 for filename, ids in modules.iteritems():
   # Sometimes we get non-ascii in here. This is definitely not
@@ -115,8 +117,9 @@ for filename, ids in modules.iteritems():
     if id in skiplist and skiplist[id] == filename.lower():
       # We've asked the symbol server previously about this, so skip it.
       continue
-    sym_file = os.path.join(symbol_path, filename, id,
+    rel_path = os.path.join(filename, id,
                             filename.replace(".pdb","") + ".sym")
+    sym_file = os.path.join(symbol_path, rel_path)
     if os.path.exists(sym_file):
       # We already have this symbol
       continue
@@ -129,6 +132,7 @@ for filename, ids in modules.iteritems():
     # ask the symbol server for it.
     # This expects that symsrv_convert.exe and all its dependencies
     # are in the current directory.
+    #TODO: make symsrv_convert write to stdout, build zip using ZipFile
     stdout = open("NUL","w")
     proc = subprocess.Popen(["symsrv_convert.exe",
                              MICROSOFT_SYMBOL_SERVER,
@@ -148,25 +152,35 @@ for filename, ids in modules.iteritems():
     # Return code of 2 or higher is an error
     elif proc.returncode >= 2:
       skiplist[id] = filename
-    # Otherwise we just assume it was written out, not much we can do
-    # if it wasn't. We'll try again next time we see it anyway.
+    if os.path.exists(sym_file):
+      file_index.append(rel_path)
 
 if verbose:
   sys.stdout.write("\n")
 
-if len(os.listdir(symbol_path)) == 0:
+if not file_index:
   if verbose:
     print "No symbols downloaded!"
   log("No symbols downloaded")
   sys.exit(0)
 
+# Write an index file
+buildid = time.strftime("%Y%m%d%H%M%S", time.localtime())
+index_filename = "microsoftsyms-1.0-WINNT-%s-symbols.txt" % buildid
+if verbose:
+  print "Adding %s" % index_filename
+with open(os.path.join(symbol_path, index_filename), 'w') as f:
+  f.write("\n".join(file_index))
+
 try:
-  zipfile = os.path.join(os.path.dirname(symbol_path), "symbols.zip")
+  zipname = "microsoft-symbols-%s.zip" % buildid
+  zipfile = os.path.join(symbol_path, zipname)
   if verbose:
     print "Zipping symbols..."
+  stdout = sys.stdout if verbose else open("NUL","w")
   subprocess.check_call(["zip", "-r9", zipfile, "*"],
                         cwd = symbol_path,
-                        stdout = open("NUL","w"),
+                        stdout = stdout,
                         stderr = subprocess.STDOUT)
   if verbose:
     print "Uploading symbols..."
@@ -176,24 +190,24 @@ try:
     path = os.path.abspath(path)
     return "/" + path[0] + path[2:].replace("\\", "/")
 
+  #TODO: upload to temp dir
   subprocess.check_call(["scp", "-i", msyspath(config.symbol_privkey),
                          msyspath(zipfile),
-                         "%s@%s:%s" % (config.symbol_user,
-                                       config.symbol_host,
-                                       config.symbol_path)],
-                        stdout = open("NUL","w"),
+                         "%s@%s:/tmp" % (config.symbol_user,
+                                       config.symbol_host)],
+                        stdout = stdout,
                         stderr = subprocess.STDOUT)
   if verbose:
     print "Unpacking symbols on remote host..."
   subprocess.check_call(["ssh", "-i", msyspath(config.symbol_privkey),
                          "-l", config.symbol_user, config.symbol_host,
-                         "cd %s && unzip -n symbols.zip; rm -v symbols.zip" % config.symbol_path],
-                        stdout = open("NUL","w"),
+                         "cd '%s' && unzip -n '/tmp/%s'; /usr/local/bin/post-symbol-upload.py '%s'; rm -v '/tmp/%s'" % (config.symbol_path, zipname, index_filename, zipname)],
+                        stdout = stdout,
                         stderr = subprocess.STDOUT)
 except Exception, ex:
   print "Error zipping or uploading symbols: ", ex
 finally:
-  if os.path.exists(zipfile):
+  if zipfile and os.path.exists(zipfile):
     os.remove(zipfile)
   shutil.rmtree(symbol_path, True)
 
@@ -208,4 +222,5 @@ except IOError:
 
 if verbose:
   print "Done!"
+log("Uploaded %d symbol files" % len(file_index))
 log("Finished, exiting")
