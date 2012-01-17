@@ -75,7 +75,7 @@ except IOError:
   pass
 
 modules = defaultdict(set)
-date = (datetime.date.today() - datetime.timedelta(1)).strftime("%Y%m%d")
+date = (datetime.date.today() - datetime.timedelta(2)).strftime("%Y%m%d")
 url = config.csv_url % {'date': date}
 if verbose:
   print "Loading module list URL (%s)..." % url
