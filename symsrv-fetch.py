@@ -75,11 +75,11 @@ except IOError:
   pass
 
 modules = defaultdict(set)
+date = (datetime.date.today() - datetime.timedelta(1)).strftime("%Y%m%d")
+url = config.csv_url % {'date': date}
 if verbose:
-  print "Loading module list URL..."
+  print "Loading module list URL (%s)..." % url
 try:
-  date = (datetime.date.today() - datetime.timedelta(1)).strftime("%Y%m%d")
-  url = config.csv_url % {'date': date}
   for line in urlopen(url).readlines():
     line = line.rstrip()
     bits = line.split(',')
@@ -206,6 +206,7 @@ try:
                         stderr = subprocess.STDOUT)
 except Exception, ex:
   print "Error zipping or uploading symbols: ", ex
+  log("Error zipping or uploading symbols: %s" % ex)
 finally:
   if zipfile and os.path.exists(zipfile):
     os.remove(zipfile)
