@@ -28,6 +28,7 @@ import StringIO
 import gzip
 import shutil
 import ctypes
+import logging
 from collections import defaultdict
 from tempfile import mkdtemp
 from urllib import urlopen
@@ -36,16 +37,26 @@ from urllib import urlopen
 MICROSOFT_SYMBOL_SERVER = "http://msdl.microsoft.com/download/symbols"
 
 verbose = False
-
 if len(sys.argv) > 1 and sys.argv[1] == "-v":
   verbose = True
 
-logfile = open(os.path.join(os.path.dirname(__file__), "symsrv-fetch.log"),
-               "a")
-def log(msg):
-  logfile.write(time.strftime("%Y-%m-%d %H:%M:%S") + " " + msg + "\n")
+log = logging.getLogger()
+log.setLevel(logging.DEBUG)
+formatter = logging.Formatter(fmt="%(asctime)-15s %(message)s",
+                              datefmt="%Y-%m-%d %H:%M:%S")
+filelog = logging.FileHandler(filename=os.path.join(os.path.dirname(__file__),
+                                                    "symsrv-fetch.log"))
+filelog.setLevel(logging.INFO)
+filelog.setFormatter(formatter)
+log.addHandler(filelog)
 
-log("Started")
+if verbose:
+  handler = logging.StreamHandler()
+  handler.setLevel(logging.DEBUG)
+  handler.setFormatter(formatter)
+  log.addHandler(handler)
+
+log.info("Started")
 
 # Symbols that we know belong to us, so don't ask Microsoft for them.
 blacklist=set()
@@ -77,8 +88,7 @@ except IOError:
 modules = defaultdict(set)
 date = (datetime.date.today() - datetime.timedelta(2)).strftime("%Y%m%d")
 url = config.csv_url % {'date': date}
-if verbose:
-  print "Loading module list URL (%s)..." % url
+log.debug("Loading module list URL (%s)..." % url)
 try:
   for line in urlopen(url).readlines():
     line = line.rstrip()
@@ -87,14 +97,13 @@ try:
       continue
     dll, pdb, uuid = bits
     modules[pdb].add(uuid)
-except IOError, e:
-  log("Error fetching: %s" % e)
+except IOError:
+  log.exception("Error fetching symbols")
   sys.exit(1)
 
 symbol_path = mkdtemp(dir=config.temp_dir)
 
-if verbose:
-  print "Fetching symbols..."
+log.debug("Fetching symbols")
 total = sum(len(ids) for ids in modules.values())
 current = 0
 file_index = []
@@ -153,37 +162,32 @@ for filename, ids in modules.iteritems():
     elif proc.returncode >= 2:
       skiplist[id] = filename
     if os.path.exists(sym_file):
-      file_index.append(rel_path)
+      file_index.append(rel_path).replace("\\", "/")
 
 if verbose:
   sys.stdout.write("\n")
 
 if not file_index:
-  if verbose:
-    print "No symbols downloaded!"
-  log("No symbols downloaded")
+  log.info("No symbols downloaded!")
   sys.exit(0)
 
 # Write an index file
 buildid = time.strftime("%Y%m%d%H%M%S", time.localtime())
 index_filename = "microsoftsyms-1.0-WINNT-%s-symbols.txt" % buildid
-if verbose:
-  print "Adding %s" % index_filename
+log.debug("Adding %s" % index_filename)
 with open(os.path.join(symbol_path, index_filename), 'w') as f:
   f.write("\n".join(file_index))
 
 try:
   zipname = "microsoft-symbols-%s.zip" % buildid
   zipfile = os.path.join(symbol_path, zipname)
-  if verbose:
-    print "Zipping symbols..."
+  log.debug("Zipping symbols...")
   stdout = sys.stdout if verbose else open("NUL","w")
   subprocess.check_call(["zip", "-r9", zipfile, "*"],
                         cwd = symbol_path,
                         stdout = stdout,
                         stderr = subprocess.STDOUT)
-  if verbose:
-    print "Uploading symbols..."
+  log.debug("Uploading symbols...")
 
   def msyspath(path):
     "Translate Windows path |path| into an MSYS path"
@@ -197,16 +201,14 @@ try:
                                        config.symbol_host)],
                         stdout = stdout,
                         stderr = subprocess.STDOUT)
-  if verbose:
-    print "Unpacking symbols on remote host..."
+  log.debug("Unpacking symbols on remote host...")
   subprocess.check_call(["ssh", "-i", msyspath(config.symbol_privkey),
                          "-l", config.symbol_user, config.symbol_host,
                          "cd '%s' && unzip -n '/tmp/%s'; /usr/local/bin/post-symbol-upload.py '%s'; rm -v '/tmp/%s'" % (config.symbol_path, zipname, index_filename, zipname)],
                         stdout = stdout,
                         stderr = subprocess.STDOUT)
-except Exception, ex:
-  print "Error zipping or uploading symbols: ", ex
-  log("Error zipping or uploading symbols: %s" % ex)
+except Exception:
+  log.exception("Error zipping or uploading symbols")
 finally:
   if zipfile and os.path.exists(zipfile):
     os.remove(zipfile)
@@ -219,9 +221,7 @@ try:
       sf.write("%s %s\n" % (debug_id, debug_file))
   sf.close()
 except IOError:
-  print >>sys.stderr, "Error writing skiplist.txt"
+  log.exception("Error writing skiplist.txt")
 
-if verbose:
-  print "Done!"
-log("Uploaded %d symbol files" % len(file_index))
-log("Finished, exiting")
+log.info("Uploaded %d symbol files" % len(file_index))
+log.info("Finished, exiting")
