@@ -162,7 +162,7 @@ for filename, ids in modules.iteritems():
     elif proc.returncode >= 2:
       skiplist[id] = filename
     if os.path.exists(sym_file):
-      file_index.append(rel_path).replace("\\", "/")
+      file_index.append(rel_path.replace("\\", "/"))
 
 if verbose:
   sys.stdout.write("\n")
