@@ -44,7 +44,8 @@ log = logging.getLogger()
 log.setLevel(logging.DEBUG)
 formatter = logging.Formatter(fmt="%(asctime)-15s %(message)s",
                               datefmt="%Y-%m-%d %H:%M:%S")
-filelog = logging.FileHandler(filename=os.path.join(os.path.dirname(__file__),
+thisdir = os.path.dirname(__file__)
+filelog = logging.FileHandler(filename=os.path.join(thisdir,
                                                     "symsrv-fetch.log"))
 filelog.setLevel(logging.INFO)
 filelog.setFormatter(formatter)
@@ -143,7 +144,8 @@ for filename, ids in modules.iteritems():
     # are in the current directory.
     #TODO: make symsrv_convert write to stdout, build zip using ZipFile
     stdout = open("NUL","w")
-    proc = subprocess.Popen(["symsrv_convert.exe",
+    symsrv_convert = os.path.join(thisdir, "symsrv_convert.exe")
+    proc = subprocess.Popen([symsrv_convert,
                              MICROSOFT_SYMBOL_SERVER,
                              symbol_path,
                              filename,
