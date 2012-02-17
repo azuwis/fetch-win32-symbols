@@ -62,17 +62,19 @@ log.info("Started")
 # Symbols that we know belong to us, so don't ask Microsoft for them.
 blacklist=set()
 try:
-  bf = file('blacklist.txt', 'r')
+  bf = file(os.path.join(thisdir, 'blacklist.txt'), 'r')
   for line in bf:
       blacklist.add(line.strip().lower())
   bf.close()
 except IOError:
   pass
+log.debug("Blacklist contains %d items" % len(blacklist))
 
 # Symbols that we've asked for in the past unsuccessfully
 skiplist={}
+skipcount = 0
 try:
-  sf = file('skiplist.txt', 'r')
+  sf = file(os.path.join(thisdir, 'skiplist.txt'), 'r')
   for line in sf:
       line = line.strip()
       if line == '':
@@ -82,9 +84,11 @@ try:
         continue
       (debug_id, debug_file) = s
       skiplist[debug_id] = debug_file.lower()
+      skipcount += 1
   sf.close()
 except IOError:
   pass
+log.debug("Skiplist contains %d items" % skipcount)
 
 modules = defaultdict(set)
 date = (datetime.date.today() - datetime.timedelta(2)).strftime("%Y%m%d")
@@ -218,7 +222,7 @@ finally:
 
 # Write out our new skip list
 try:
-  sf = file('skiplist.txt', 'w')
+  sf = file(os.path.join(thisdir, 'skiplist.txt'), 'w')
   for (debug_id,debug_file) in skiplist.iteritems():
       sf.write("%s %s\n" % (debug_id, debug_file))
   sf.close()

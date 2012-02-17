@@ -39,6 +39,7 @@ gfxwordcachetest.pdb
 gkgfx.pdb
 gkgfxthebes.pdb
 gklayout.pdb
+gkmedias.pdb
 gkparser.pdb
 gkplugin.pdb
 gkwidget.pdb
