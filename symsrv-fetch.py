@@ -210,7 +210,7 @@ try:
   log.debug("Unpacking symbols on remote host...")
   subprocess.check_call(["ssh", "-i", msyspath(config.symbol_privkey),
                          "-l", config.symbol_user, config.symbol_host,
-                         "cd '%s' && unzip -n '/tmp/%s'; /usr/local/bin/post-symbol-upload.py '%s'; rm -v '/tmp/%s'" % (config.symbol_path, zipname, index_filename, zipname)],
+                         "cd '%s' && unzip -n '/tmp/%s' && /usr/local/bin/post-symbol-upload.py '%s' && rm -v '/tmp/%s'" % (config.symbol_path, zipname, index_filename, zipname)],
                         stdout = stdout,
                         stderr = subprocess.STDOUT)
 except Exception:
