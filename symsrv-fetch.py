@@ -215,6 +215,7 @@ try:
                         stderr = subprocess.STDOUT)
 except Exception:
   log.exception("Error zipping or uploading symbols")
+  sys.exit(1)
 finally:
   if zipfile and os.path.exists(zipfile):
     os.remove(zipfile)
