@@ -200,17 +200,16 @@ try:
     path = os.path.abspath(path)
     return "/" + path[0] + path[2:].replace("\\", "/")
 
-  #TODO: upload to temp dir
   subprocess.check_call(["scp", "-i", msyspath(config.symbol_privkey),
                          msyspath(zipfile),
                          "%s@%s:/tmp" % (config.symbol_user,
-                                       config.symbol_host)],
+                                         config.symbol_host)],
                         stdout = stdout,
                         stderr = subprocess.STDOUT)
   log.debug("Unpacking symbols on remote host...")
   subprocess.check_call(["ssh", "-i", msyspath(config.symbol_privkey),
                          "-l", config.symbol_user, config.symbol_host,
-                         "cd '%s' && unzip -n '/tmp/%s' && /usr/local/bin/post-symbol-upload.py '%s' && rm -v '/tmp/%s'" % (config.symbol_path, zipname, index_filename, zipname)],
+                         "umask 0022; cd '%s' && unzip -n '/tmp/%s' && /usr/local/bin/post-symbol-upload.py '%s' && rm -v '/tmp/%s'" % (config.symbol_path, zipname, index_filename, zipname)],
                         stdout = stdout,
                         stderr = subprocess.STDOUT)
 except Exception:
