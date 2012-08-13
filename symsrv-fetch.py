@@ -1,5 +1,5 @@
 #
-# This script will read a feed of crash reports from Socorro, and try to retrieve
+# This script will read a CSV of modules from Socorro, and try to retrieve
 # missing symbols from Microsoft's symbol server. It honors a blacklist
 # (blacklist.txt) of symbols that are known to be from our applications,
 # and it maintains its own list of symbols that the MS symbol server
