@@ -98,9 +98,9 @@ try:
   for line in urlopen(url).readlines():
     line = line.rstrip()
     bits = line.split(',')
-    if len(bits) != 3:
+    if len(bits) < 3:
       continue
-    dll, pdb, uuid = bits
+    dll, pdb, uuid = bits[:3]
     modules[pdb].add(uuid)
 except IOError:
   log.exception("Error fetching symbols")
