@@ -101,7 +101,8 @@ try:
     if len(bits) < 3:
       continue
     dll, pdb, uuid = bits[:3]
-    modules[pdb].add(uuid)
+    if pdb and uuid:
+      modules[pdb].add(uuid)
 except IOError:
   log.exception("Error fetching symbols")
   sys.exit(1)
@@ -111,6 +112,9 @@ symbol_path = mkdtemp(dir=config.temp_dir)
 log.debug("Fetching symbols")
 total = sum(len(ids) for ids in modules.values())
 current = 0
+blacklist_count = 0
+skiplist_count = 0
+existing_count = 0
 file_index = []
 # Now try to fetch all the unknown modules from the symbol server
 for filename, ids in modules.iteritems():
@@ -121,6 +125,7 @@ for filename, ids in modules.iteritems():
   if filename.lower() in blacklist:
     # This is one of our our debug files from Firefox/Thunderbird/etc
     current += len(ids)
+    blacklist_count += len(ids)
     continue
   for id in ids:
     current += 1
@@ -130,17 +135,20 @@ for filename, ids in modules.iteritems():
                                                     filename[:20]))
     if id in skiplist and skiplist[id] == filename.lower():
       # We've asked the symbol server previously about this, so skip it.
+      skiplist_count += 1
       continue
     rel_path = os.path.join(filename, id,
                             filename.replace(".pdb","") + ".sym")
     sym_file = os.path.join(symbol_path, rel_path)
     if os.path.exists(sym_file):
       # We already have this symbol
+      existing_count += 1
       continue
     if config.read_only_symbol_path != '' and \
        os.path.exists(os.path.join(config.read_only_symbol_path, filename, id,
                                    filename.replace(".pdb","") + ".sym")):
       # We already have this symbol
+      existing_count += 1
       continue
     # Not in the blacklist, skiplist, and we don't already have it, so
     # ask the symbol server for it.
@@ -167,6 +175,7 @@ for filename, ids in modules.iteritems():
     # Return code of 2 or higher is an error
     elif proc.returncode >= 2:
       skiplist[id] = filename
+      skiplist_count += 1
     if os.path.exists(sym_file):
       file_index.append(rel_path.replace("\\", "/"))
 
@@ -174,7 +183,8 @@ if verbose:
   sys.stdout.write("\n")
 
 if not file_index:
-  log.info("No symbols downloaded!")
+  log.info("No symbols downloaded: %d considered, %d already present, %d in blacklist, %d skipped"
+           % (total, existing_count, blacklist_count, skiplist_count))
   sys.exit(0)
 
 # Write an index file
