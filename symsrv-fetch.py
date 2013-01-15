@@ -171,14 +171,13 @@ for filename, ids in modules.iteritems():
     # This expects that symsrv_convert.exe and all its dependencies
     # are in the current directory.
     #TODO: make symsrv_convert write to stdout, build zip using ZipFile
-    stdout = open("NUL","w")
     symsrv_convert = os.path.join(thisdir, "symsrv_convert.exe")
     proc = subprocess.Popen([symsrv_convert,
                              MICROSOFT_SYMBOL_SERVER,
                              symbol_path,
                              filename,
                              id],
-                            stdout = stdout,
+                            stdout = subprocess.PIPE,
                             stderr = subprocess.STDOUT)
     # kind of lame, want to prevent it from running too long
     start = time.time()
@@ -189,8 +188,7 @@ for filename, ids in modules.iteritems():
       # kill it, it's been too long
       log.debug("Timed out downloading %s/%s", filename, id)
       ctypes.windll.kernel32.TerminateProcess(int(proc._handle), -1)
-    # Return code of 2 or higher is an error
-    elif proc.returncode >= 2:
+    elif proc.returncode != 0:
       not_found_count += 1
       # Don't skiplist this symbol if we've previously downloaded
       # other symbol versions for the same file. It's likely we'll
@@ -201,6 +199,8 @@ for filename, ids in modules.iteritems():
         skiplist[id] = filename
       else:
         log.debug("Couldn't fetch %s/%s, but not skiplisting", filename, id)
+      convert_output = proc.stdout.read().strip()
+      log.debug("symsrv_convert.exe output: '%s'", convert_output)
     if os.path.exists(sym_file):
       log.debug("Successfully downloaded %s/%s", filename, id)
       file_index.append(rel_path.replace("\\", "/"))
