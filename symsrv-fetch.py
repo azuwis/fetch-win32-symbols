@@ -65,6 +65,9 @@ if verbose:
   handler.setLevel(logging.DEBUG)
   handler.setFormatter(formatter)
   log.addHandler(handler)
+  verboselog = logging.FileHandler(filename=os.path.join(thisdir,
+                                                      "verbose.log"))
+  log.addHandler(verboselog)
 
 log.info("Started")
 
