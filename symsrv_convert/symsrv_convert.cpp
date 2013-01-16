@@ -1,11 +1,9 @@
-#include <iostream>
+#include <cstdio>
 #include <string>
 #include <vector>
 
-#include "ms_symbol_server_converter.h"
+#include "tools/windows/converter/ms_symbol_server_converter.h"
 
-using std::cout;
-using std::endl;
 using std::string;
 using std::vector;
 using google_breakpad::MissingSymbolInfo;
@@ -14,9 +12,7 @@ using google_breakpad::MSSymbolServerConverter;
 int main(int argc, char *argv[])
 {
   if (argc < 5) {
-    cout << "Usage: " << argv[0]
-         << " <symbol server> <symbol path> <debug file> <debug identifier>"
-         << endl;
+    fprintf(stderr, "Usage: %s <symbol server> <symbol path> <debug file> <debug identifier>\n ", argv[0]);
     return 1;
   }
 
@@ -27,25 +23,37 @@ int main(int argc, char *argv[])
   MSSymbolServerConverter converter(argv[2], vector<string>(1, argv[1]));
   string converted_file;
 
-  cout << argv[3] << ": ";
-  switch(converter.LocateAndConvertSymbolFile(missing_info,
-                                              false,
-                                              &converted_file,
-                                              NULL)) {
+  MSSymbolServerConverter::LocateResult result =
+    converter.LocateAndConvertSymbolFile(missing_info,
+                                         false,
+                                         &converted_file,
+                                         NULL);
+  printf("%s: ", argv[3]);
+  int return_code;
+  switch(result) {
   case MSSymbolServerConverter::LOCATE_SUCCESS:
-    cout << " converted: " << converted_file << endl;
-    return 0;
+    printf("converted: %s\n", converted_file.c_str());
+    return_code =  0;
+    break;
 
   case MSSymbolServerConverter::LOCATE_RETRY:
-    cout << " try again later" << endl;
-    return 1;
+    printf("try again later\n");
+    return_code = 1;
+    break;
 
   case MSSymbolServerConverter::LOCATE_FAILURE:
   case MSSymbolServerConverter::LOCATE_NOT_FOUND:
-    cout << " failed to locate symbols" << endl;
-    return 2;
-  }
+    printf("failed to locate symbols\n");
+    return_code = 2;
+    break;
 
-  // ???
-  return 3;
+  default:
+    // ???
+    return_code = 3;
+    break;
+  }
+  fflush(stdout);
+  fflush(stderr);
+
+  return return_code;
 }
