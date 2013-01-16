@@ -49,6 +49,7 @@ def write_skiplist():
 verbose = False
 if len(sys.argv) > 1 and sys.argv[1] == "-v":
   verbose = True
+  sys.argv.pop(1)
 
 log = logging.getLogger()
 log.setLevel(logging.DEBUG)
@@ -103,8 +104,11 @@ except IOError:
 log.debug("Skiplist contains %d items" % skipcount)
 
 modules = defaultdict(set)
-date = (datetime.date.today() - datetime.timedelta(1)).strftime("%Y%m%d")
-url = config.csv_url % {'date': date}
+if len(sys.argv) > 1:
+  url = sys.argv[1]
+else:
+  date = (datetime.date.today() - datetime.timedelta(1)).strftime("%Y%m%d")
+  url = config.csv_url % {'date': date}
 log.debug("Loading module list URL (%s)..." % url)
 try:
   for line in urlopen(url).readlines():
