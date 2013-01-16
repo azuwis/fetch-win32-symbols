@@ -103,7 +103,7 @@ except IOError:
 log.debug("Skiplist contains %d items" % skipcount)
 
 modules = defaultdict(set)
-date = (datetime.date.today() - datetime.timedelta(2)).strftime("%Y%m%d")
+date = (datetime.date.today() - datetime.timedelta(1)).strftime("%Y%m%d")
 url = config.csv_url % {'date': date}
 log.debug("Loading module list URL (%s)..." % url)
 try:
