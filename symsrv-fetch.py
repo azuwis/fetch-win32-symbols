@@ -123,7 +123,7 @@ except IOError:
   log.exception("Error fetching symbols")
   sys.exit(1)
 
-symbol_path = mkdtemp(dir=config.temp_dir)
+symbol_path = config.symbol_path
 
 log.debug("Fetching symbols")
 total = sum(len(ids) for ids in modules.values())
@@ -175,8 +175,8 @@ for filename, ids in modules.iteritems():
     # This expects that symsrv_convert.exe and all its dependencies
     # are in the current directory.
     #TODO: make symsrv_convert write to stdout, build zip using ZipFile
-    symsrv_convert = os.path.join(thisdir, "symsrv_convert.exe")
-    proc = subprocess.Popen([symsrv_convert,
+    symsrv_convert = os.path.join(thisdir, "symsrv_convert.sh")
+    proc = subprocess.Popen(["bash", symsrv_convert,
                              MICROSOFT_SYMBOL_SERVER,
                              symbol_path,
                              filename,
@@ -191,7 +191,7 @@ for filename, ids in modules.iteritems():
     if proc.poll() is None:
       # kill it, it's been too long
       log.debug("Timed out downloading %s/%s", filename, id)
-      ctypes.windll.kernel32.TerminateProcess(int(proc._handle), -1)
+      proc.kill()
     elif proc.returncode != 0:
       not_found_count += 1
       # Don't skiplist this symbol if we've previously downloaded
@@ -224,42 +224,6 @@ index_filename = "microsoftsyms-1.0-WINNT-%s-symbols.txt" % buildid
 log.debug("Adding %s" % index_filename)
 with open(os.path.join(symbol_path, index_filename), 'w') as f:
   f.write("\n".join(file_index))
-
-try:
-  zipname = "microsoft-symbols-%s.zip" % buildid
-  zipfile = os.path.join(symbol_path, zipname)
-  log.debug("Zipping symbols...")
-  stdout = sys.stdout if verbose else open("NUL","w")
-  subprocess.check_call(["zip", "-r9", zipfile, "*"],
-                        cwd = symbol_path,
-                        stdout = stdout,
-                        stderr = subprocess.STDOUT)
-  log.debug("Uploading symbols...")
-
-  def msyspath(path):
-    "Translate Windows path |path| into an MSYS path"
-    path = os.path.abspath(path)
-    return "/" + path[0] + path[2:].replace("\\", "/")
-
-  subprocess.check_call(["scp", "-i", msyspath(config.symbol_privkey),
-                         msyspath(zipfile),
-                         "%s@%s:/tmp" % (config.symbol_user,
-                                         config.symbol_host)],
-                        stdout = stdout,
-                        stderr = subprocess.STDOUT)
-  log.debug("Unpacking symbols on remote host...")
-  subprocess.check_call(["ssh", "-i", msyspath(config.symbol_privkey),
-                         "-l", config.symbol_user, config.symbol_host,
-                         "umask 0022; cd '%s' && unzip -n '/tmp/%s' && /usr/local/bin/post-symbol-upload.py '%s' && rm -v '/tmp/%s'" % (config.symbol_path, zipname, index_filename, zipname)],
-                        stdout = stdout,
-                        stderr = subprocess.STDOUT)
-except Exception:
-  log.exception("Error zipping or uploading symbols")
-  sys.exit(1)
-finally:
-  if zipfile and os.path.exists(zipfile):
-    os.remove(zipfile)
-  shutil.rmtree(symbol_path, True)
 
 # Write out our new skip list
 write_skiplist()

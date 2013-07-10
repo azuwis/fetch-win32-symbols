@@ -3,13 +3,7 @@ read_only_symbol_path=''
 # URL pointing to the daily module report file in CSV format
 # %(date)s will be substituted with the date as YYYYMMDD
 csv_url=''
-# Host to upload symbols to via scp
-symbol_host=''
-# Username to upload as on symbol_host
-symbol_user=''
-# Full path to a private key to use to login to symbol_host
-symbol_privkey=''
-# Path to unpack symbols at on symbol_host
+# Path to save symbols
 symbol_path=''
-# Temporary directory to store symbols in locally
-temp_dir=''
+# Path to processed crash
+processed_crash=''
