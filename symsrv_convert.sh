@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# apt-get install cabextract
+# apt-get install wine cabextract curl
 # wget http://google-breakpad.googlecode.com/svn/trunk/src/tools/windows/binaries/dump_syms.exe
 # wine regsvr32 msdia80.dll
 
@@ -15,7 +15,9 @@ PDBDIR="$PDB/$ID"
 PD_="${PDB/%pdb/pd_}"
 FPD_="$SYMPATH/$PDBDIR/$PD_"
 
-curl --silent --fail --location --create-dirs --user-agent "Microsoft-Symbol-Server/6.2.9200.16384" --output "$FPD_" "$SYMSVR/$PDBDIR/$PD_"
+mkdir -p "$SYMPATH/$PDBDIR"
+
+curl --silent --fail --location --user-agent "Microsoft-Symbol-Server/6.2.9200.16384" --output "$FPD_" "$SYMSVR/$PDBDIR/$PD_"
 
 if [ -e "$FPD_" -a $(file --brief --mime-type "$FPD_") == "application/vnd.ms-cab-compressed" ]; then
 	cabextract -q -d "$SYMPATH/$PDBDIR" "$FPD_"
