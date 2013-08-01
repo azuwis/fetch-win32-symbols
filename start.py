@@ -5,6 +5,7 @@ import csv
 import glob
 import os
 import subprocess
+import re
 from datetime import datetime
 
 import config
@@ -26,6 +27,19 @@ most_recent = last_processed
 # glob .jsonz of the current month
 jsonzs = glob.glob("%s/%s*/name/*/*/*.jsonz" % (config.processed_crash, datetime.now().strftime("%Y%m")))
 
+saved_releases=set()
+generated_releases=set()
+new_releases=set()
+
+# load releases_csv into saved_releases
+try:
+    with open(config.releases_csv, "rb") as csvfile:
+        csvreader = csv.reader(csvfile)
+        for row in csvreader:
+            saved_releases.add(tuple(row))
+except IOError:
+    pass
+
 with open(config.csv_url, "wb") as csvfile:
     csvwriter = csv.writer(csvfile, quoting=csv.QUOTE_NONE)
     # parse all new jsonz, and save modules to csv file
@@ -37,11 +51,30 @@ with open(config.csv_url, "wb") as csvfile:
             most_recent = this_mtime
         crash = json.load(gzip.open(jsonz))
 
+        product = crash["product"]
+        version = crash["version"]
+        build = crash["build"]
+        # check if product exist in config.versions and version matched
+        if (product in config.versions.keys() and re.match(config.versions[product], version)):
+            generated_releases.add((product, version, build))
+
         dump = crash["dump"].split("\n")
         reader = csv.reader(dump, delimiter='|', quoting=csv.QUOTE_NONE)
         for row in reader:
             if (len(row) > 4 and row[0] == "Module"):
                 csvwriter.writerow([row[1], row[3], row[4]])
+
+new_releases = generated_releases - saved_releases
+
+# add new releases to releases_csv
+try:
+    with open(config.releases_csv, "wb") as csvfile:
+        csvwriter = csv.writer(csvfile)
+        for row in new_releases | saved_releases:
+            csvwriter.writerow(row)
+except IOError:
+    print "error writing releases_csv"
+    pass
 
 subprocess.call(["python", os.path.join(this_dir, "symsrv-fetch.py")])
 

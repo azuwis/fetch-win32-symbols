@@ -7,3 +7,8 @@ csv_url=''
 symbol_path=''
 # Path to processed crash
 processed_crash=''
+# Path to saved product releases
+releases_csv=''
+# version filter
+versions={}
+#versions["foo"]='^1\.0\.\d+\.0$'
