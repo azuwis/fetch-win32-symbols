@@ -6,6 +6,7 @@ import glob
 import os
 import subprocess
 import re
+import urllib2
 from datetime import datetime
 
 import config
@@ -65,6 +66,14 @@ with open(config.csv_url, "wb") as csvfile:
                 csvwriter.writerow([row[1], row[3], row[4]])
 
 new_releases = generated_releases - saved_releases
+
+# add new release using middleware api
+for release in new_releases:
+    if re.match('^\d{10,14}$', release[2]):
+        build_id = release[2]
+    else:
+        build_id = datetime.now().strftime("%Y%m%d%H%M%S")
+    urllib2.urlopen("%sproducts/builds/product/%s/version/%s/platform/Windows/build_id/%s/build_type/Release/repository/release" % (config.middleware_url, release[0], release[1], build_id), data="")
 
 # add new releases to releases_csv
 try:

@@ -12,3 +12,5 @@ releases_csv=''
 # version filter
 versions={}
 #versions["foo"]='^1\.0\.\d+\.0$'
+# middleware url
+middleware_url=''
