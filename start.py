@@ -76,14 +76,15 @@ for release in new_releases:
     urllib2.urlopen("%sproducts/builds/product/%s/version/%s/platform/Windows/build_id/%s/build_type/Release/repository/release" % (config.middleware_url, release[0], release[1], build_id), data="")
 
 # add new releases to releases_csv
-try:
-    with open(config.releases_csv, "wb") as csvfile:
-        csvwriter = csv.writer(csvfile)
-        for row in new_releases | saved_releases:
-            csvwriter.writerow(row)
-except IOError:
-    print "error writing releases_csv"
-    pass
+if len(new_releases) > 0:
+    try:
+        with open(config.releases_csv, "wb") as csvfile:
+            csvwriter = csv.writer(csvfile)
+            for row in new_releases | saved_releases:
+                csvwriter.writerow(row)
+    except IOError:
+        print "error writing releases_csv"
+        pass
 
 subprocess.call(["python", os.path.join(this_dir, "symsrv-fetch.py")])
 
