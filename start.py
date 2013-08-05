@@ -6,7 +6,7 @@ import glob
 import os
 import subprocess
 import re
-import urllib2
+import urllib,urllib2
 from datetime import datetime
 from distutils.version import LooseVersion
 
@@ -70,13 +70,26 @@ new_releases = generated_releases - saved_releases
 
 if len(new_releases) > 0:
     # add new release using middleware api
-    for release in sorted(new_releases, key = lambda x: LooseVersion(x[1])):
+    sorted_new_releases = sorted(new_releases, key = lambda x: LooseVersion(x[1]))
+    for release in sorted_new_releases:
         # set build id to current datetime if wrongly provided
         if re.match('^\d{10,14}$', release[2]):
             build_id = release[2]
         else:
             build_id = datetime.now().strftime("%Y%m%d%H%M%S")
-        urllib2.urlopen("%sproducts/builds/product/%s/version/%s/platform/Windows/build_id/%s/build_type/Release/repository/release" % (config.middleware_url, release[0], release[1], build_id), data="")
+        urllib2.urlopen("%s/products/builds/product/%s/version/%s/platform/Windows/build_id/%s/build_type/Release/repository/release" % (config.middleware_url, release[0], release[1], build_id), data="")
+
+    # set featured release
+    sorted_saved_release = sorted(saved_releases, key = lambda x: LooseVersion(x[1]))
+    max_saved_release = ("", "0", "")
+    if len(sorted_saved_release) > 0:
+        max_saved_release = sorted_saved_release[-1]
+    max_new_release = sorted_new_releases[-1]
+    if LooseVersion(max_new_release[1]) > LooseVersion(max_saved_release[1]):
+        opener = urllib2.build_opener(urllib2.HTTPHandler)
+        request = urllib2.Request("%s/releases/featured/" % config.middleware_url, data=urllib.urlencode({max_new_release[0]: max_new_release[1]}))
+        request.get_method = lambda: 'PUT'
+        opener.open(request)
 
     # save releases_csv
     try:
