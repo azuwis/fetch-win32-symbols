@@ -8,6 +8,7 @@ import subprocess
 import re
 import urllib2
 from datetime import datetime
+from distutils.version import LooseVersion
 
 import config
 
@@ -67,20 +68,21 @@ with open(config.csv_url, "wb") as csvfile:
 
 new_releases = generated_releases - saved_releases
 
-# add new release using middleware api
-for release in new_releases:
-    if re.match('^\d{10,14}$', release[2]):
-        build_id = release[2]
-    else:
-        build_id = datetime.now().strftime("%Y%m%d%H%M%S")
-    urllib2.urlopen("%sproducts/builds/product/%s/version/%s/platform/Windows/build_id/%s/build_type/Release/repository/release" % (config.middleware_url, release[0], release[1], build_id), data="")
-
-# add new releases to releases_csv
 if len(new_releases) > 0:
+    # add new release using middleware api
+    for release in sorted(new_releases, key = lambda x: LooseVersion(x[1])):
+        # set build id to current datetime if wrongly provided
+        if re.match('^\d{10,14}$', release[2]):
+            build_id = release[2]
+        else:
+            build_id = datetime.now().strftime("%Y%m%d%H%M%S")
+        urllib2.urlopen("%sproducts/builds/product/%s/version/%s/platform/Windows/build_id/%s/build_type/Release/repository/release" % (config.middleware_url, release[0], release[1], build_id), data="")
+
+    # save releases_csv
     try:
         with open(config.releases_csv, "wb") as csvfile:
             csvwriter = csv.writer(csvfile)
-            for row in new_releases | saved_releases:
+            for row in sorted(new_releases | saved_releases, key=lambda x: LooseVersion(x[1])):
                 csvwriter.writerow(row)
     except IOError:
         print "error writing releases_csv"
